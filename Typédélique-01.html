@@ -1,0 +1,931 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Typographic Kaleidoscope</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    
+    html, body {
+      height: 100%;
+      width: 100%;
+      margin: 0;
+      padding: 0;
+    }
+    
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      overflow: hidden;
+      position: relative;
+    }
+    
+    #background-video {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
+      object-fit: cover;
+      z-index: -1;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.3s ease;
+    }
+    
+    #background-video.visible {
+      opacity: 0.75;
+    }
+    
+    #canvas-container {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      height: 100vh;
+      transition: background-color 0.3s ease;
+      overflow: visible;
+      padding: 0;
+      margin: 0;
+    }
+    
+    #canvas-container canvas {
+      display: block;
+      margin: 0;
+      padding: 0;
+    }
+    
+    #control-panel {
+      position: fixed;
+      bottom: 20px;
+      right: 20px;
+      background: rgba(0, 0, 0, 0.95);
+      color: white;
+      border-radius: 12px;
+      border: 2px solid #888;
+      transition: all 0.3s ease;
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+      z-index: 1000;
+    }
+    
+    #control-panel.closed {
+      width: 50px;
+      height: 50px;
+      padding: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    
+    #control-panel.closed #controls-content {
+      display: none;
+    }
+    
+    #control-panel.open {
+      width: 320px;
+      max-height: 80vh;
+      padding: 20px;
+      padding-bottom: 10px;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+    }
+    
+    #toggle-btn {
+      position: relative;
+      background: rgba(255, 255, 255, 0.1);
+      border: none;
+      font-size: 20px;
+      cursor: pointer;
+      z-index: 1001;
+      padding: 8px;
+      margin-top: 10px;
+      line-height: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 4px;
+      align-self: stretch;
+    }
+    
+    #control-panel.open #toggle-btn {
+      background: rgba(255, 255, 255, 0.05);
+    }
+    
+    #control-panel.closed #toggle-btn {
+      position: static;
+      margin: auto;
+      font-size: 24px;
+    }
+    
+    .control-group {
+      margin-bottom: 15px;
+    }
+    
+    .control-group label {
+      display: block;
+      margin-bottom: 5px;
+      font-size: 12px;
+      font-weight: 500;
+    }
+    
+    .control-group select,
+    .control-group input[type="text"] {
+      width: 100%;
+      padding: 8px;
+      border-radius: 4px;
+      border: none;
+      background: #333;
+      color: white;
+      font-size: 14px;
+    }
+    
+    .control-group input[type="text"] {
+      font-size: 24px;
+      text-align: center;
+    }
+    
+    .control-group input[type="range"] {
+      width: 100%;
+      height: 6px;
+      border-radius: 3px;
+      background: #444;
+      outline: none;
+    }
+    
+    .control-group input[type="color"] {
+      width: 100%;
+      height: 40px;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+    }
+    
+    .control-group input[type="file"] {
+      width: 100%;
+      font-size: 10px;
+      color: white;
+    }
+    
+    .checkbox-group {
+      display: flex;
+      align-items: center;
+      cursor: pointer;
+      margin-bottom: 10px;
+    }
+    
+    .checkbox-group input {
+      margin-right: 8px;
+      cursor: pointer;
+    }
+    
+    .checkbox-group span {
+      font-size: 12px;
+    }
+    
+    h3 {
+      margin-top: 0;
+      margin-bottom: 20px;
+      font-size: 18px;
+      font-weight: 600;
+    }
+    
+    #controls-content {
+      overflow-y: auto;
+      overflow-x: hidden;
+      flex: 1;
+      padding-right: 10px;
+      margin-right: -10px;
+    }
+    
+    #controls-content::-webkit-scrollbar {
+      width: 6px;
+    }
+    
+    #controls-content::-webkit-scrollbar-track {
+      background: #222;
+      border-radius: 3px;
+    }
+    
+    #controls-content::-webkit-scrollbar-thumb {
+      background: #555;
+      border-radius: 3px;
+    }
+    
+    #controls-content::-webkit-scrollbar-thumb:hover {
+      background: #777;
+    }
+    
+    /* Custom scrollbar */
+    #control-panel::-webkit-scrollbar {
+      width: 6px;
+    }
+    
+    #control-panel::-webkit-scrollbar-track {
+      background: #222;
+      border-radius: 3px;
+    }
+    
+    #control-panel::-webkit-scrollbar-thumb {
+      background: #555;
+      border-radius: 3px;
+    }
+    
+    #control-panel::-webkit-scrollbar-thumb:hover {
+      background: #777;
+    }
+  </style>
+</head>
+<body>
+  <video id="background-video" muted loop playsinline preload="auto" crossorigin="anonymous" src="https://test-videos.co.uk/vids/bigbuckbunny/mp4/h264/360/Big_Buck_Bunny_360_10s_1MB.mp4"></video>
+  <div id="canvas-container"></div>
+  
+  <div id="control-panel" class="closed">
+    <div id="controls-content">
+      <h3>Controls</h3>
+      
+      <div class="control-group">
+        <label>Font</label>
+        <select id="font-select"></select>
+      </div>
+      
+      <div class="control-group">
+        <label>Character</label>
+        <input type="text" id="char-input" maxlength="1" value="A">
+      </div>
+      
+      <div class="control-group">
+        <label>Rotation Speed: <span id="speed-value">1</span></label>
+        <input type="range" id="speed-slider" min="0" max="10" step="0.5" value="1">
+      </div>
+      
+      <div class="control-group">
+        <label>Size: <span id="size-value">200</span></label>
+        <input type="range" id="size-slider" min="50" max="600" step="10" value="200">
+      </div>
+      
+      <div class="control-group">
+        <label>Position: <span id="position-value">0</span>%</label>
+        <input type="range" id="position-slider" min="0" max="100" step="5" value="0">
+      </div>
+      
+      <div class="control-group">
+        <label>Background Color</label>
+        <input type="color" id="bg-color" value="#000000">
+      </div>
+      
+      <div class="control-group">
+        <label>Type Color</label>
+        <input type="color" id="type-color" value="#ffffff">
+      </div>
+      
+      <div class="control-group">
+        <label>Upload Video</label>
+        <input type="file" id="video-upload" accept="video/*">
+      </div>
+      
+      <div class="checkbox-group">
+        <input type="checkbox" id="video-toggle" checked>
+        <span>📹 Video Visible</span>
+      </div>
+      
+      <div class="checkbox-group">
+        <input type="checkbox" id="bg-video-toggle">
+        <span>🎬 Background Video</span>
+      </div>
+      
+      <div class="control-group">
+        <label>BG Video Opacity: <span id="bg-opacity-value">75</span>%</label>
+        <input type="range" id="bg-opacity-slider" min="0" max="100" step="5" value="75">
+      </div>
+      
+      <div class="checkbox-group">
+        <input type="checkbox" id="clipping-toggle">
+        <span>✂️ Clipping</span>
+      </div>
+      
+      <div class="checkbox-group">
+        <input type="checkbox" id="wireframe-toggle">
+        <span>📐 Wireframe</span>
+      </div>
+      
+      <div class="control-group">
+        <button id="play-pause-btn" style="width: 100%; padding: 10px; background: #444; color: white; border: none; border-radius: 4px; cursor: pointer; margin-bottom: 8px;">⏸️ Pause Video</button>
+        <button id="mute-btn" style="width: 100%; padding: 10px; background: #444; color: white; border: none; border-radius: 4px; cursor: pointer; margin-bottom: 8px;">🔇 Mute</button>
+        <button id="download-btn" style="width: 100%; padding: 10px; background: #444; color: white; border: none; border-radius: 4px; cursor: pointer;">💾 Download PNG</button>
+      </div>
+    </div>
+    <button id="toggle-btn">⚙️</button>
+  </div>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.7.0/p5.min.js"></script>
+  <script>
+    // Google Fonts
+    const FONTS = [
+      'Playfair Display',
+      'Montserrat',
+      'Bebas Neue',
+      'Dancing Script',
+      'Righteous',
+      'Italiana',
+      'Abril Fatface',
+      'Pacifico',
+      'Cinzel',
+      'Great Vibes',
+      'Oswald',
+      'Raleway',
+      'Lobster',
+      'Satisfy',
+      'Permanent Marker',
+      'Allura',
+      'Ultra',
+      'Fugaz One',
+      'Amatic SC',
+      'Shadows Into Light'
+    ];
+    
+    // Load Google Fonts
+    const link = document.createElement('link');
+    link.href = `https://fonts.googleapis.com/css2?${FONTS.map(f => `family=${f.replace(/ /g, '+')}`).join('&')}&display=swap`;
+    link.rel = 'stylesheet';
+    document.head.appendChild(link);
+    
+    // Populate font selector
+    const fontSelect = document.getElementById('font-select');
+    FONTS.forEach(font => {
+      const option = document.createElement('option');
+      option.value = font;
+      option.textContent = font;
+      fontSelect.appendChild(option);
+    });
+    
+    // State
+    let config = {
+      font: 'Playfair Display',
+      character: 'A',
+      speed: 1,
+      size: 200,
+      position: 0,
+      bgColor: '#000000',
+      typeColor: '#ffffff',
+      videoVisible: true,
+      clipping: false,
+      wireframe: false,
+      videoPlaying: true,
+      videoMuted: true,
+      bgVideoVisible: false,
+      bgVideoOpacity: 75
+    };
+    
+    let rotation = 0;
+    let video;
+    let videoLoaded = false;
+    let pg; // Graphics buffer for masking
+    let bgVideo; // Background video element
+    
+    // p5.js sketch
+    function setup() {
+      // Calculate canvas size to allow overflow while keeping visual area centered
+      const viewportSize = Math.min(windowWidth, windowHeight);
+      const visualSize = viewportSize * 0.7; // The actual working area we want visible
+      const canvasSize = visualSize * 1.4; // Canvas is larger to allow overflow
+      const canvas = createCanvas(canvasSize, canvasSize);
+      canvas.parent('canvas-container');
+      textAlign(CENTER, CENTER);
+      
+      // Create graphics buffer for video masking
+      pg = createGraphics(canvasSize, canvasSize);
+      pg.textAlign(CENTER, CENTER);
+      
+      // Get background video element (source already set in HTML)
+      bgVideo = document.getElementById('background-video');
+      if (!bgVideo) {
+        console.error('Background video element not found!');
+        return;
+      }
+      
+      console.log('Background video element found:', bgVideo);
+      console.log('Background video src:', bgVideo.src);
+      bgVideo.muted = true; // ALWAYS muted to avoid doubled audio
+      bgVideo.setAttribute('playsinline', '');
+      bgVideo.setAttribute('webkit-playsinline', '');
+      bgVideo.loop = true;
+      
+      // FORCE the browser to start loading the video immediately
+      bgVideo.load();
+      console.log('Called bgVideo.load(), readyState:', bgVideo.readyState);
+      
+      // Debug: Log when background video is ready
+      bgVideo.addEventListener('loadeddata', () => {
+        console.log('Background video loaded and ready, duration:', bgVideo.duration);
+      });
+      
+      bgVideo.addEventListener('error', (e) => {
+        console.error('Background video error event:', e);
+        console.error('Error details:', bgVideo.error);
+        if (bgVideo.error) {
+          console.error('Error code:', bgVideo.error.code);
+          console.error('Error message:', bgVideo.error.message);
+        }
+      });
+      
+      bgVideo.addEventListener('loadstart', () => {
+        console.log('Background video loading started');
+      });
+      
+      bgVideo.addEventListener('canplay', () => {
+        console.log('Background video can play');
+      });
+      
+      // Load default video for masking
+      video = createVideo('https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4', videoReady);
+      video.size(canvasSize, canvasSize);
+      video.hide();
+      video.volume(0);
+      
+      // Don't auto-play, wait for canplay event
+      video.elt.addEventListener('canplay', () => {
+        videoLoaded = true;
+        if (config.videoPlaying) {
+          video.loop();
+          if (config.bgVideoVisible) {
+            bgVideo.play();
+          }
+        }
+      });
+      
+      // Sync background video with main video
+      bgVideo.addEventListener('canplay', () => {
+        if (config.videoPlaying && config.bgVideoVisible) {
+          bgVideo.play();
+        }
+      });
+    }
+    
+    function videoReady() {
+      videoLoaded = true;
+      if (config.videoPlaying) {
+        video.loop();
+        if (config.bgVideoVisible) {
+          bgVideo.play();
+        }
+      }
+    }
+    
+    function draw() {
+      // Update background
+      document.getElementById('canvas-container').style.backgroundColor = config.bgColor;
+      background(config.bgColor);
+      
+      // Update rotation - only if playing
+      if (config.videoPlaying) {
+        rotation += config.speed * 0.01;
+      }
+      
+      // Calculate the "visual square" size (the intended working area)
+      const visualSize = width / 1.4;
+      const offsetX = (width - visualSize) / 2;
+      const offsetY = (height - visualSize) / 2;
+      
+      push();
+      translate(offsetX, offsetY);
+      
+      // Outer container clipping - only when clipping is ON
+      if (config.clipping) {
+        drawingContext.save();
+        drawingContext.beginPath();
+        drawingContext.rect(0, 0, visualSize, visualSize);
+        drawingContext.clip();
+      }
+      
+      // Draw wireframe for the visual square
+      if (config.wireframe) {
+        push();
+        stroke(0, 255, 0); // Bright green
+        strokeWeight(2);
+        drawingContext.setLineDash([5, 5]); // Dotted line
+        noFill();
+        line(visualSize/2, 0, visualSize/2, visualSize);
+        line(0, visualSize/2, visualSize, visualSize/2);
+        rect(0, 0, visualSize, visualSize);
+        drawingContext.setLineDash([]); // Reset to solid
+        pop();
+      }
+      
+      // Calculate offset
+      const quadSize = visualSize / 2;
+      const offset = (config.position / 100) * (quadSize / 2);
+      
+      // Draw 4 quadrants
+      for (let i = 0; i < 4; i++) {
+        push();
+        
+        // Position at quadrant center
+        const qx = (i % 2) * quadSize + quadSize / 2;
+        const qy = floor(i / 2) * quadSize + quadSize / 2;
+        translate(qx, qy);
+        
+        // Mirror transformations
+        const flipX = (i % 2 === 1) ? -1 : 1;
+        const flipY = (i >= 2) ? -1 : 1;
+        scale(flipX, flipY);
+        
+        // Move towards corner
+        translate(offset, offset);
+        
+        // Quadrant clipping
+        if (config.clipping) {
+          drawingContext.save();
+          translate(-quadSize/2, -quadSize/2);
+          drawingContext.beginPath();
+          drawingContext.rect(0, 0, quadSize, quadSize);
+          drawingContext.clip();
+          translate(quadSize/2, quadSize/2);
+        }
+        
+        // Rotate
+        rotate(rotation);
+        
+        // Set font
+        textFont(config.font);
+        textSize(config.size);
+        
+        if (config.videoVisible && video && videoLoaded) {
+          // Use graphics buffer for proper masking
+          pg.clear();
+          pg.push();
+          pg.imageMode(CENTER);
+          
+          // Calculate video dimensions
+          const vw = video.width;
+          const vh = video.height;
+          const scale = max(width / vw, height / vh);
+          const scaledW = vw * scale;
+          const scaledH = vh * scale;
+          
+          // Draw video to buffer
+          pg.image(video, width/2, height/2, scaledW, scaledH);
+          
+          // Mask with text
+          pg.drawingContext.globalCompositeOperation = 'destination-in';
+          pg.textFont(config.font);
+          pg.textSize(config.size);
+          pg.fill(255);
+          pg.noStroke();
+          pg.textAlign(CENTER, CENTER);
+          pg.text(config.character, width/2, height/2);
+          pg.drawingContext.globalCompositeOperation = 'source-over';
+          pg.pop();
+          
+          // Draw the masked result
+          imageMode(CENTER);
+          image(pg, 0, 0);
+        } else {
+          // Solid color text
+          fill(config.typeColor);
+          noStroke();
+          text(config.character, 0, 0);
+        }
+        
+        if (config.clipping) {
+          drawingContext.restore();
+        }
+        
+        pop();
+      }
+      
+      // Restore outer container clipping
+      if (config.clipping) {
+        drawingContext.restore();
+      }
+      
+      pop(); // Restore translation
+    }
+    
+    function windowResized() {
+      const viewportSize = Math.min(windowWidth, windowHeight);
+      const visualSize = viewportSize * 0.7;
+      const canvasSize = visualSize * 1.4;
+      resizeCanvas(canvasSize, canvasSize);
+      if (pg) {
+        pg.resizeCanvas(canvasSize, canvasSize);
+      }
+      if (video) {
+        video.size(canvasSize, canvasSize);
+      }
+    }
+    
+    // Control panel interactions
+    const panel = document.getElementById('control-panel');
+    const toggleBtn = document.getElementById('toggle-btn');
+    const controlsContent = document.getElementById('controls-content');
+    
+    toggleBtn.addEventListener('click', () => {
+      panel.classList.toggle('open');
+      panel.classList.toggle('closed');
+      controlsContent.style.display = panel.classList.contains('open') ? 'block' : 'none';
+      toggleBtn.textContent = panel.classList.contains('open') ? '✖️' : '⚙️';
+    });
+    
+    // Font selector
+    fontSelect.addEventListener('change', (e) => {
+      config.font = e.target.value;
+    });
+    
+    // Character input
+    document.getElementById('char-input').addEventListener('input', (e) => {
+      config.character = e.target.value || 'A';
+    });
+    
+    // Speed slider
+    const speedSlider = document.getElementById('speed-slider');
+    const speedValue = document.getElementById('speed-value');
+    speedSlider.addEventListener('input', (e) => {
+      config.speed = parseFloat(e.target.value);
+      speedValue.textContent = config.speed;
+    });
+    
+    // Size slider
+    const sizeSlider = document.getElementById('size-slider');
+    const sizeValue = document.getElementById('size-value');
+    sizeSlider.addEventListener('input', (e) => {
+      config.size = parseInt(e.target.value);
+      sizeValue.textContent = config.size;
+    });
+    
+    // Position slider
+    const positionSlider = document.getElementById('position-slider');
+    const positionValue = document.getElementById('position-value');
+    positionSlider.addEventListener('input', (e) => {
+      config.position = parseInt(e.target.value);
+      positionValue.textContent = config.position;
+    });
+    
+    // Colors
+    document.getElementById('bg-color').addEventListener('input', (e) => {
+      config.bgColor = e.target.value;
+    });
+    
+    document.getElementById('type-color').addEventListener('input', (e) => {
+      config.typeColor = e.target.value;
+    });
+    
+    // Video upload
+    document.getElementById('video-upload').addEventListener('change', (e) => {
+      const file = e.target.files[0];
+      if (file && video) {
+        // Stop current videos
+        video.stop();
+        bgVideo.pause();
+        videoLoaded = false;
+        
+        // Create new source
+        const url = URL.createObjectURL(file);
+        
+        // Remove old sources
+        video.elt.pause();
+        video.elt.src = '';
+        bgVideo.pause();
+        bgVideo.src = '';
+        
+        // Add new source and load both videos
+        video.elt.src = url;
+        video.elt.load();
+        bgVideo.src = url;
+        bgVideo.load();
+        bgVideo.muted = true; // ALWAYS ensure background video is muted
+        
+        console.log('New video uploaded, sources updated:', url);
+        
+        // Wait for masked video canplay event
+        video.elt.addEventListener('canplay', function onCanPlay() {
+          videoLoaded = true;
+          console.log('Masked video ready');
+          if (config.videoPlaying) {
+            video.loop();
+            if (config.bgVideoVisible) {
+              bgVideo.play().catch(err => console.log('BG video play error:', err));
+            }
+          }
+          if (config.videoMuted) {
+            video.volume(0);
+          }
+          video.elt.removeEventListener('canplay', onCanPlay);
+        }, { once: true });
+      }
+    });
+    
+    // Toggles
+    document.getElementById('video-toggle').addEventListener('change', (e) => {
+      config.videoVisible = e.target.checked;
+    });
+    
+    // Background video toggle
+    document.getElementById('bg-video-toggle').addEventListener('change', (e) => {
+      config.bgVideoVisible = e.target.checked;
+      console.log('Background video toggle:', e.target.checked);
+      
+      if (e.target.checked) {
+        bgVideo.classList.add('visible');
+        console.log('Added visible class, has class:', bgVideo.classList.contains('visible'));
+        console.log('Video readyState:', bgVideo.readyState, '(4=HAVE_ENOUGH_DATA)');
+        
+        // Check if video is ready to play
+        if (bgVideo.readyState >= 3) { // HAVE_FUTURE_DATA or HAVE_ENOUGH_DATA
+          console.log('Video ready, attempting to play...');
+          bgVideo.play().then(() => {
+            console.log('Background video playing successfully');
+          }).catch(err => {
+            console.error('Background video play error:', err);
+          });
+        } else {
+          console.log('Video not ready yet, waiting for canplay event...');
+          bgVideo.addEventListener('canplay', function playWhenReady() {
+            console.log('Video now ready via canplay, playing...');
+            bgVideo.play().then(() => {
+              console.log('Background video playing successfully');
+            }).catch(err => {
+              console.error('Background video play error:', err);
+            });
+            bgVideo.removeEventListener('canplay', playWhenReady);
+          }, { once: true });
+        }
+      } else {
+        bgVideo.classList.remove('visible');
+        bgVideo.pause();
+        console.log('Background video paused and hidden');
+      }
+    });
+    
+    // Background video opacity slider
+    const bgOpacitySlider = document.getElementById('bg-opacity-slider');
+    const bgOpacityValue = document.getElementById('bg-opacity-value');
+    bgOpacitySlider.addEventListener('input', (e) => {
+      config.bgVideoOpacity = parseInt(e.target.value);
+      bgOpacityValue.textContent = config.bgVideoOpacity;
+      bgVideo.style.opacity = config.bgVideoOpacity / 100;
+    });
+    
+    document.getElementById('clipping-toggle').addEventListener('change', (e) => {
+      config.clipping = e.target.checked;
+    });
+    
+    document.getElementById('wireframe-toggle').addEventListener('change', (e) => {
+      config.wireframe = e.target.checked;
+    });
+    
+    // Play/Pause button
+    const playPauseBtn = document.getElementById('play-pause-btn');
+    playPauseBtn.addEventListener('click', () => {
+      if (video && videoLoaded) {
+        if (config.videoPlaying) {
+          // Pause both videos
+          video.pause();
+          video.elt.pause();
+          bgVideo.pause();
+          config.videoPlaying = false;
+          playPauseBtn.textContent = '▶️ Play Video';
+          console.log('Videos paused');
+        } else {
+          // Play both videos
+          video.loop();
+          video.elt.play();
+          config.videoPlaying = true;
+          playPauseBtn.textContent = '⏸️ Pause Video';
+          
+          // Only play background video if it's visible
+          if (config.bgVideoVisible && bgVideo.readyState >= 3) {
+            bgVideo.play().catch(err => console.log('BG video play error on resume:', err));
+          }
+          console.log('Videos playing');
+        }
+      }
+    });
+    
+    // Mute button
+    const muteBtn = document.getElementById('mute-btn');
+    muteBtn.addEventListener('click', () => {
+      if (video) {
+        if (config.videoMuted) {
+          video.volume(1);
+          config.videoMuted = false;
+          muteBtn.textContent = '🔊 Unmute';
+        } else {
+          video.volume(0);
+          config.videoMuted = true;
+          muteBtn.textContent = '🔇 Mute';
+        }
+      }
+    });
+    
+    // Download PNG button
+    document.getElementById('download-btn').addEventListener('click', () => {
+      // Create offscreen canvas matching current canvas size
+      const viewportSize = Math.min(windowWidth, windowHeight);
+      const visualSize = viewportSize * 0.7;
+      const canvasSize = visualSize * 1.4;
+      const offscreenCanvas = document.createElement('canvas');
+      offscreenCanvas.width = canvasSize;
+      offscreenCanvas.height = canvasSize;
+      const ctx = offscreenCanvas.getContext('2d');
+      
+      // Clear with transparency
+      ctx.clearRect(0, 0, canvasSize, canvasSize);
+      
+      const offsetX = (canvasSize - visualSize) / 2;
+      const offsetY = (canvasSize - visualSize) / 2;
+      
+      ctx.save();
+      ctx.translate(offsetX, offsetY);
+      
+      const quadSize = visualSize / 2;
+      const offset = (config.position / 100) * (quadSize / 2);
+      
+      // Set font
+      ctx.font = `${config.size}px "${config.font}"`;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      
+      // Draw each quadrant
+      for (let i = 0; i < 4; i++) {
+        ctx.save();
+        
+        // Position at quadrant center
+        const qx = (i % 2) * quadSize + quadSize / 2;
+        const qy = Math.floor(i / 2) * quadSize + quadSize / 2;
+        ctx.translate(qx, qy);
+        
+        // Mirror transformations
+        const flipX = (i % 2 === 1) ? -1 : 1;
+        const flipY = (i >= 2) ? -1 : 1;
+        ctx.scale(flipX, flipY);
+        
+        // Move towards corner
+        ctx.translate(offset, offset);
+        
+        // Clipping
+        if (config.clipping) {
+          ctx.save();
+          ctx.translate(-quadSize/2, -quadSize/2);
+          ctx.beginPath();
+          ctx.rect(0, 0, quadSize, quadSize);
+          ctx.clip();
+          ctx.translate(quadSize/2, quadSize/2);
+        }
+        
+        // Rotate
+        ctx.rotate(rotation);
+        
+        if (config.videoVisible && video && videoLoaded) {
+          // Video masking - draw video first
+          const vw = video.width;
+          const vh = video.height;
+          const scale = Math.max(canvasSize / vw, canvasSize / vh);
+          const scaledW = vw * scale;
+          const scaledH = vh * scale;
+          
+          ctx.save();
+          ctx.globalCompositeOperation = 'source-over';
+          ctx.translate(-scaledW/2, -scaledH/2);
+          ctx.drawImage(video.elt, 0, 0, scaledW, scaledH);
+          ctx.restore();
+          
+          // Mask with text - only show video where text is
+          ctx.globalCompositeOperation = 'destination-in';
+          ctx.fillStyle = '#ffffff';
+          ctx.fillText(config.character, 0, 0);
+          ctx.globalCompositeOperation = 'source-over';
+        } else {
+          // Solid color text
+          ctx.fillStyle = config.typeColor;
+          ctx.fillText(config.character, 0, 0);
+        }
+        
+        if (config.clipping) {
+          ctx.restore();
+        }
+        
+        ctx.restore();
+      }
+      
+      ctx.restore();
+      
+      // Download as PNG
+      offscreenCanvas.toBlob((blob) => {
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `typo-kaleidoscope-${Date.now()}.png`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+      });
+    });
+  </script>
+</body>
+</html>
